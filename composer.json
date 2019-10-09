@@ -1,0 +1,14 @@
+{
+    "name":"romkamix/ParserPamyat",
+    "version":"1.0.0",
+    "require":{
+        "php":">=5.3.0"
+    },
+    "authors": [
+        {
+          "name":     "Romkamix",
+          "email":    "romkamix@gmail.com",
+          "homepage": "https://romkamix.ru"
+        }
+    ],
+}
