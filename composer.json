@@ -10,5 +10,8 @@
           "email":    "romkamix@gmail.com",
           "homepage": "https://romkamix.ru"
         }
-    ]
+    ],
+    "require": {
+        "phpoffice/phpspreadsheet": "^1.9"
+    }
 }
