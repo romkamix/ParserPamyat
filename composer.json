@@ -6,9 +6,9 @@
     },
     "authors": [
         {
-          "name":     "Romkamix",
-          "email":    "romkamix@gmail.com",
-          "homepage": "https://romkamix.ru"
+            "name":     "Romkamix",
+            "email":    "romkamix@gmail.com",
+            "homepage": "https://romkamix.ru"
         }
     ],
     "require": {
@@ -18,5 +18,5 @@
         "psr-4": {
             "Pamyat\\": "src/"
         }
-    },
+    }
 }
