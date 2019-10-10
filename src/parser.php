@@ -5,11 +5,13 @@ namespace Pamyat;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 
+use XMLReader;
+use ZipArchive;
+use SimpleXMLElement;
+
 class Parser
 {
   private $sharedStringsCache = [];
-  // private $sharedStringsCache = [];
-
 
   private $WorkbookXML = [];
   private $StylesXML = [];
@@ -17,25 +19,45 @@ class Parser
   public function __construct($inputFileName)
   {
     // Unzip
-    $zip = new \ZipArchive();
+    $zip = new ZipArchive();
     $zip->open($inputFileName);
 
     if ($zip->locateName('xl/workbook.xml') !== false)
     {
-      $this->WorkbookXML = new \SimpleXMLElement($zip->getFromName('xl/workbook.xml'));
+      $this->WorkbookXML = new SimpleXMLElement($zip->getFromName('xl/workbook.xml'));
     }
 
     if ($zip->locateName('xl/sharedStrings.xml') !== false)
     {
-      // $this->SharedStringsXML = new \SimpleXMLElement($zip->getFromName('xl/sharedStrings.xml'));
-
-      $sharedStrings = new \XMLReader;
+      $sharedStrings = new XMLReader;
       $sharedStrings->xml($zip->getFromName('xl/sharedStrings.xml'));
 
+      $cacheIndex = 0;
+      $cacheValue = '';
       while ($sharedStrings->read())
       {
-        $this->sharedStringsCache[] = $sharedStrings->readString();
+        switch ($sharedStrings->name)
+        {
+          case 'si':
+            if ($sharedStrings->nodeType == XMLReader::END_ELEMENT)
+            {
+              $this->sharedStringsCache[$cacheIndex] = $cacheValue;
+              $cacheIndex++;
+              $cacheValue = '';
+            }
+            break;
+
+          case 't':
+            if ($sharedStrings->nodeType == XMLReader::END_ELEMENT)
+            {
+              continue;
+            }
+            $cacheValue .= $sharedStrings->readString();
+            break;
+        }
       }
+
+      $sharedStrings->close();
     }
 
     // print_r($this->SharedStringsXML[17463]);
