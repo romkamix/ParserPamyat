@@ -7,13 +7,51 @@ use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 
 class Parser
 {
+  private $sharedStringsCache = [];
+  // private $sharedStringsCache = [];
+
+
+  private $WorkbookXML = [];
+  private $SharedStringsXML = [];
+  private $StylesXML = [];
+
   public function __construct($inputFileName)
   {
     // Unzip
     $zip = new \ZipArchive();
     $zip->open($inputFileName);
 
-    
+    if ($zip->locateName('xl/workbook.xml') !== false)
+    {
+      $this->WorkbookXML = new \SimpleXMLElement($zip->getFromName('xl/workbook.xml'));
+    }
+
+    if ($zip->locateName('xl/sharedStrings.xml') !== false)
+    {
+      $this->SharedStringsXML = new \SimpleXMLElement($zip->getFromName('xl/sharedStrings.xml'));
+
+      $sharedStrings = new \XMLReader;
+      $sharedStrings->xml($zip->getFromName('xl/sharedStrings.xml'));
+      $sharedStrings->read();
+      print_r($sharedStrings->getAttribute('count'));
+    }
+
+    // print_r($this->SharedStringsXML[17463]);
+
+    // $tmp_dir = ini_get('upload_tmp_dir') ? ini_get('upload_tmp_dir') : sys_get_temp_dir();
+    // $tmp_dir .= '/romkamix_parser_pamyat_unzip';
+
+    // // Unzip
+    // $zip = new \ZipArchive();
+    // $zip->open($inputFileName);
+
+    // $zip->extractTo($tmp_dir);
+
+    // $xml = simplexml_load_file($tmp_dir . '/xl/sharedStrings.xml');
+
+    // foreach ($xml->children() as $item) {
+    //   $this->SharedStringsXML[] = (string)$item->t;
+    // }
   }
 
   public static function xls($inputFileName, $start = null, $limit = null)
