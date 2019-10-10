@@ -7,6 +7,15 @@ use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 
 class Parser
 {
+  public function __construct($inputFileName)
+  {
+    // Unzip
+    $zip = new \ZipArchive();
+    $zip->open($inputFileName);
+
+    
+  }
+
   public static function xls($inputFileName, $start = null, $limit = null)
   {
     $data = [];
@@ -15,6 +24,10 @@ class Parser
     {
       return [];
     }
+
+    $Reader = new \SpreadsheetReader($inputFileName);
+
+    return;
 
     $reader = \PhpOffice\PhpSpreadsheet\IOFactory::createReader('Xlsx');
 
