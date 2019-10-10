@@ -12,7 +12,6 @@ class Parser
 
 
   private $WorkbookXML = [];
-  private $SharedStringsXML = [];
   private $StylesXML = [];
 
   public function __construct($inputFileName)
@@ -28,12 +27,15 @@ class Parser
 
     if ($zip->locateName('xl/sharedStrings.xml') !== false)
     {
-      $this->SharedStringsXML = new \SimpleXMLElement($zip->getFromName('xl/sharedStrings.xml'));
+      // $this->SharedStringsXML = new \SimpleXMLElement($zip->getFromName('xl/sharedStrings.xml'));
 
       $sharedStrings = new \XMLReader;
       $sharedStrings->xml($zip->getFromName('xl/sharedStrings.xml'));
-      $sharedStrings->read();
-      print_r($sharedStrings->getAttribute('count'));
+
+      while ($sharedStrings->read())
+      {
+        $this->sharedStringsCache[] = $sharedStrings->readString();
+      }
     }
 
     // print_r($this->SharedStringsXML[17463]);
