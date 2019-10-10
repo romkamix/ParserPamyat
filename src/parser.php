@@ -7,17 +7,24 @@ use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 
 class Parser
 {
-  public static function xls($inputFile, $start = null, $limit = null)
+  public static function xls($inputFileName, $start = null, $limit = null)
   {
     $data = [];
 
-    if (!is_file($inputFile))
+    if (!is_file($inputFileName))
     {
       return [];
     }
 
-    $reader = \PhpOffice\PhpSpreadsheet\IOFactory::createReader('Xls');
-    $filter = new ReadFilter();
+    $reader = \PhpOffice\PhpSpreadsheet\IOFactory::createReader('Xlsx');
+
+    $filter = new ReadFilter(9,15,range('G','K'));
+
+    $reader->setReadFilter($filter);
+
+    ini_set('memory_limit', '256M');
+    $spreadsheet = $reader->load($inputFileName);
+
     return '';
 
 

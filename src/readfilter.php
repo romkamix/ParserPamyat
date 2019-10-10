@@ -7,15 +7,24 @@ use PhpOffice\PhpSpreadsheet\Reader\IReadFilter;
 
 class ReadFilter implements IReadFilter
 {
-    public function readCell($column, $row, $worksheetName = '')
-    {
-        // Read rows 1 to 7 and columns A to E only
-        if ($row >= 1 && $row <= 7) {
-            if (in_array($column, range('A', 'E'))) {
+    private $startRow = 0;
+    private $endRow   = 0;
+    private $columns  = [];
+
+    /**  Get the list of rows and columns to read  */
+    public function __construct($startRow, $endRow, $columns) {
+        $this->startRow = $startRow;
+        $this->endRow   = $endRow;
+        $this->columns  = $columns;
+    }
+
+    public function readCell($column, $row, $worksheetName = '') {
+        //  Only read the rows and columns that were configured
+        if ($row >= $this->startRow && $row <= $this->endRow) {
+            if (in_array($column,$this->columns)) {
                 return true;
             }
         }
-
         return false;
     }
 }
