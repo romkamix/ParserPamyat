@@ -12,147 +12,130 @@ use SimpleXMLElement;
 class Parser
 {
   private $sharedStringsCache = [];
+  private $formatsCache = [];
 
-  private $WorkbookXML = [];
-  private $StylesXML = [];
+  private $zip = [];
+  private $tmp_dir = '';
 
   public function __construct($inputFileName)
   {
+    $this->tmp_dir = ini_get('upload_tmp_dir') ? ini_get('upload_tmp_dir') : sys_get_temp_dir();
+    $this->tmp_dir .= '/romkamix_parser_pamyat_unzip';
+
     // Unzip
     $zip = new ZipArchive();
     $zip->open($inputFileName);
+    $zip->extractTo($this->tmp_dir);
 
-    if ($zip->locateName('xl/workbook.xml') !== false)
+    if (file_exists($this->tmp_dir . '/xl/sharedStrings.xml'))
     {
-      $this->WorkbookXML = new SimpleXMLElement($zip->getFromName('xl/workbook.xml'));
+      $sharedStrings = simplexml_load_file($this->tmp_dir . '/xl/sharedStrings.xml');
+
+      foreach ($sharedStrings->si as $sharedString) {
+        $this->sharedStringsCache[] = (string)$sharedString->t;
+      }
+
+      unset($sharedStrings);
     }
 
-    if ($zip->locateName('xl/sharedStrings.xml') !== false)
+    if (file_exists($this->tmp_dir . '/xl/styles.xml'))
     {
-      $sharedStrings = new XMLReader;
-      $sharedStrings->xml($zip->getFromName('xl/sharedStrings.xml'));
+      $styles = simplexml_load_file($this->tmp_dir . '/xl/styles.xml');
 
-      $cacheIndex = 0;
-      $cacheValue = '';
-      while ($sharedStrings->read())
+      $customFormats = array();
+
+      if ($styles->numFmts)
       {
-        switch ($sharedStrings->name)
+        foreach ($styles->numFmts->numFmt as $numFmt)
         {
-          case 'si':
-            if ($sharedStrings->nodeType == XMLReader::END_ELEMENT)
-            {
-              $this->sharedStringsCache[$cacheIndex] = $cacheValue;
-              $cacheIndex++;
-              $cacheValue = '';
-            }
-            break;
-
-          case 't':
-            if ($sharedStrings->nodeType == XMLReader::END_ELEMENT)
-            {
-              continue;
-            }
-            $cacheValue .= $sharedStrings->readString();
-            break;
+          $customFormats[(int) $numFmt['numFmtId']] = (string)$numFmt['formatCode'];
         }
       }
 
-      $sharedStrings->close();
-    }
+      if ($styles->cellXfs)
+      {
+        foreach ($styles->cellXfs->xf as $xf)
+        {
+          $numFmtId = (int) $xf['numFmtId'];
 
-    // print_r($this->SharedStringsXML[17463]);
-
-    // $tmp_dir = ini_get('upload_tmp_dir') ? ini_get('upload_tmp_dir') : sys_get_temp_dir();
-    // $tmp_dir .= '/romkamix_parser_pamyat_unzip';
-
-    // // Unzip
-    // $zip = new \ZipArchive();
-    // $zip->open($inputFileName);
-
-    // $zip->extractTo($tmp_dir);
-
-    // $xml = simplexml_load_file($tmp_dir . '/xl/sharedStrings.xml');
-
-    // foreach ($xml->children() as $item) {
-    //   $this->SharedStringsXML[] = (string)$item->t;
-    // }
-  }
-
-  public static function xls($inputFileName, $start = null, $limit = null)
-  {
-    $data = [];
-
-    if (!is_file($inputFileName))
-    {
-      return [];
-    }
-
-    $Reader = new \SpreadsheetReader($inputFileName);
-
-    return;
-
-    $reader = \PhpOffice\PhpSpreadsheet\IOFactory::createReader('Xlsx');
-
-    $filter = new ReadFilter(9,15,range('G','K'));
-
-    $reader->setReadFilter($filter);
-
-    ini_set('memory_limit', '256M');
-    $spreadsheet = $reader->load($inputFileName);
-
-    return '';
-
-
-    $tmp_dir = ini_get('upload_tmp_dir') ? ini_get('upload_tmp_dir') : sys_get_temp_dir();
-    $tmp_dir .= '/romkamix_parser_pamyat_unzip';
-
-    // Unzip
-    $zip = new \ZipArchive();
-    $zip->open($inputFile);
-    $zip->extractTo($tmp_dir);
-
-    $xml = simplexml_load_file($tmp_dir . '/xl/sharedStrings.xml');
-
-    $strings = array();
-    foreach ($xml->children() as $item) {
-      $strings[] = (string)$item->t;
-    }
-
-    $datetype = array();
-    $xml = simplexml_load_file($tmp_dir . '/xl/styles.xml');
-
-    $formats = array();
-    foreach ($xml as $item) {
-      if ($item->getName() == 'numFmts') {
-        foreach ($item->children() as $numFmt) {
-          $formats[(string) $numFmt['numFmtId']] = (string) $numFmt['formatCode'];
-        }
-      }
-
-      if ($item->getName() == 'cellXfs') {
-        $i = -1;
-        foreach ($item->children() as $xf) {
-          $i++;
-
-          $numFmtId = (string) $xf['numFmtId'];
-
-          if (isset($formats[$numFmtId])) {
-            $datetype[$i] = $formats[$numFmtId];
+          if (isset($customFormats[$numFmtId])) {
+            $this->formatsCache[] = $customFormats[$numFmtId];
             continue;
           }
 
           if (in_array($numFmtId, array('14'))) {
-            $datetype[$i] = 'dd.mm.yyyy';
+            $this->formatsCache[] = 'dd.mm.yyyy';
             continue;
           }
 
-          $datetype[$i] = NumberFormat::builtInFormatCode($numFmtId);
+          $this->formatsCache[] = NumberFormat::builtInFormatCode($numFmtId);
         }
       }
+
+      unset($styles);
+      unset($customFormats);
+    }
+  }
+
+  public function rows($page = 1, $limit = 2000)
+  {
+    $rows = array();
+
+    $xmlreader = new \XMLReader;
+    $xmlreader->open($this->tmp_dir . '/xl/worksheets/sheet1.xml');
+
+    $doc = new \DOMDocument;
+
+    $row_id = 0;
+
+    while ($xmlreader->read() && $xmlreader->name !== 'row');
+    while ($xmlreader->name === 'row')
+    {
+      $row_id++;
+
+      if (($row_id <= ($page - 1) * $limit))
+      {
+        $xmlreader->next('row');
+        continue;
+      }
+
+      if ($row_id > $page * $limit)
+      {
+        break;
+      }
+
+      $node = simplexml_import_dom($doc->importNode($xmlreader->expand(), true));
+      $row = array();
+
+      echo $row_id . "\n";
+
+      foreach ($node->c as $cell) {
+        $value = isset($cell->v) ? (string) $cell->v : '';
+
+        if (isset($cell['t']) && $cell['t'] == 's') {
+          $value = $this->sharedStringsCache[$value];
+        }
+
+        if (!empty($value) && isset($cell['s']) && isset($this->formatsCache[(string) $cell['s']])) {
+          $value = NumberFormat::toFormattedString($value, $this->formatsCache[(string) $cell['s']]);
+        }
+
+        [$cellColumn, $cellRow] = Coordinate::coordinateFromString($cell['r']);
+        $cellColumnIndex = Coordinate::columnIndexFromString($cellColumn);
+
+        $row[$cellColumnIndex] = self::formatString($value);
+      }
+
+      $rows[] = $row;
+
+      $xmlreader->next('row');
     }
 
-    $params = array();
+    return $rows;
+  }
 
+  public static function xls($inputFileName, $start = null, $limit = null)
+  {
     $xmlreader = new \XMLReader;
     $xmlreader->open($tmp_dir . '/xl/worksheets/sheet1.xml');
 
