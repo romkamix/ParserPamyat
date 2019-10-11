@@ -9,7 +9,6 @@ use Iterator;
 use XMLReader;
 use DOMDocument;
 use ZipArchive;
-use SimpleXMLElement;
 
 class Parser implements Iterator
 {
@@ -26,7 +25,7 @@ class Parser implements Iterator
   public function __construct($inputFileName)
   {
     $this->tmp_dir = ini_get('upload_tmp_dir') ? ini_get('upload_tmp_dir') : sys_get_temp_dir();
-    $this->tmp_dir .= '/romkamix_parser_pamyat_unzip';
+    $this->tmp_dir .= '/romkamix_simple_xlsx_parser';
 
     // Unzip
     $zip = new ZipArchive();
