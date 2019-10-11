@@ -1,5 +1,5 @@
 {
-    "name":"romkamix/parserpamyat",
+    "name":"romkamix/simple_xlsx_parser",
     "version":"1.0.0",
     "require":{
         "php":">=5.3.0"
@@ -16,7 +16,7 @@
     },
     "autoload": {
         "psr-4": {
-            "Pamyat\\": "src/"
+            "SimpleXlsxParser\\": "src/"
         }
     }
 }
