@@ -5,17 +5,23 @@ namespace SimpleXlsxParser;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 
+use Iterator;
 use XMLReader;
+use DOMDocument;
 use ZipArchive;
 use SimpleXMLElement;
 
-class Parser
+class Parser implements Iterator
 {
   private $sharedStringsCache = [];
   private $formatsCache = [];
 
   private $zip = [];
   private $tmp_dir = '';
+
+  private $_reader = null;
+  private $_index = 1;
+  const _TAG = 'row';
 
   public function __construct($inputFileName)
   {
@@ -75,71 +81,64 @@ class Parser
       unset($styles);
       unset($customFormats);
     }
+
+    $this->rewind();
   }
 
-  public function rows($page = 1, $limit = 2000)
+  public function current()
   {
-    $rows = array();
+    $row = array();
 
-    $xmlreader = new \XMLReader;
-    $xmlreader->open($this->tmp_dir . '/xl/worksheets/sheet1.xml');
+    $doc = new DOMDocument;
+    $node = simplexml_import_dom($doc->importNode($this->_reader->expand(), true));
 
-    $doc = new \DOMDocument;
-
-    $row_id = 0;
-
-    while ($xmlreader->read() && $xmlreader->name !== 'row');
-    while ($xmlreader->name === 'row')
+    foreach ($node->c as $cell)
     {
-      $row_id++;
+      $value = isset($cell->v) ? (string) $cell->v : '';
 
-      if (($row_id <= ($page - 1) * $limit))
+      if (isset($cell['t']) && $cell['t'] == 's')
       {
-        $xmlreader->next('row');
-        continue;
+        $value = $this->sharedStringsCache[$value];
       }
 
-      if ($row_id > $page * $limit)
+      if (!empty($value) && isset($cell['s'])
+          && isset($this->formatsCache[(string) $cell['s']]))
       {
-        break;
+        $value = NumberFormat::toFormattedString($value, $this->formatsCache[(string) $cell['s']]);
       }
 
-      $node = simplexml_import_dom($doc->importNode($xmlreader->expand(), true));
-      $row = array();
+      [$cellColumn, $cellRow] = Coordinate::coordinateFromString($cell['r']);
+      $cellColumnIndex = Coordinate::columnIndexFromString($cellColumn);
 
-      echo $row_id . "\n";
-
-      foreach ($node->c as $cell)
-      {
-        $value = isset($cell->v) ? (string) $cell->v : '';
-
-        if (isset($cell['t']) && $cell['t'] == 's')
-        {
-          $value = $this->sharedStringsCache[$value];
-        }
-
-        if (!empty($value) && isset($cell['s'])
-            && isset($this->formatsCache[(string) $cell['s']]))
-        {
-          $value = NumberFormat::toFormattedString($value, $this->formatsCache[(string) $cell['s']]);
-        }
-
-        [$cellColumn, $cellRow] = Coordinate::coordinateFromString($cell['r']);
-        $cellColumnIndex = Coordinate::columnIndexFromString($cellColumn);
-
-        $row[$cellColumnIndex] = self::formatString($value);
-      }
-
-      $rows[] = $row;
-
-      $xmlreader->next('row');
+      $row[$cellColumnIndex] = $value;
     }
 
-    return $rows;
+    return $row;
   }
 
-  public static function formatString($str)
+  public function key()
   {
-    return trim(preg_replace('/\s+/', ' ', $str));
+    return $this->_index;
+  }
+
+  public function next() //: void;
+  {
+    $this->_reader->next(self::_TAG);
+    $this->_index++;
+  }
+
+  public function rewind() //: void;
+  {
+    $this->_reader = new XMLReader;
+    $this->_reader->open($this->tmp_dir . '/xl/worksheets/sheet1.xml');
+
+    while ($this->_reader->read() && $this->_reader->name !== self::_TAG);
+
+    $this->_index = 1;
+  }
+
+  public function valid() //: bool
+  {
+    return ($this->_reader->name === self::_TAG);
   }
 }
