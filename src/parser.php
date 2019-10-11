@@ -1,6 +1,6 @@
 <?php
 
-namespace Pamyat;
+namespace SimpleXlsxParser;
 
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
