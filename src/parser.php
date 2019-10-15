@@ -18,6 +18,8 @@ class Parser implements Iterator
   private $zip = [];
   private $tmp_dir = '';
 
+  private $_activeSheet = 1;
+  private $_sheets = [];
   private $_reader = null;
   private $_index = 1;
   const _TAG = 'row';
@@ -31,6 +33,17 @@ class Parser implements Iterator
     $zip = new ZipArchive();
     $zip->open($inputFileName);
     $zip->extractTo($this->tmp_dir);
+
+    if (file_exists($this->tmp_dir . '/xl/workbook.xml'))
+    {
+      $sheets = simplexml_load_file($this->tmp_dir . '/xl/workbook.xml');
+
+      foreach ($sheets->sheets->sheet as $sheet) {
+        $this->_sheets[(int)$sheet['sheetId']] = (string)$sheet['name'];
+      }
+
+      unset($sheets);
+    }
 
     if (file_exists($this->tmp_dir . '/xl/sharedStrings.xml'))
     {
@@ -81,7 +94,21 @@ class Parser implements Iterator
       unset($customFormats);
     }
 
-    $this->rewind();
+    $this->setActiveSheet($this->_activeSheet);
+  }
+
+  public function getSheets()
+  {
+    return $this->_sheets;
+  }
+
+  public function setActiveSheet($index)
+  {
+    if (array_key_exists($index, $this->_sheets))
+    {
+      $this->_activeSheet = $index;
+      $this->rewind();
+    }
   }
 
   public function current()
@@ -129,7 +156,7 @@ class Parser implements Iterator
   public function rewind() //: void;
   {
     $this->_reader = new XMLReader;
-    $this->_reader->open($this->tmp_dir . '/xl/worksheets/sheet1.xml');
+    $this->_reader->open($this->tmp_dir . '/xl/worksheets/sheet' . $this->_activeSheet . '.xml');
 
     while ($this->_reader->read() && $this->_reader->name !== self::_TAG);
 
