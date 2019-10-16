@@ -39,7 +39,17 @@ class Parser implements Iterator
       $sheets = simplexml_load_file($this->tmp_dir . '/xl/workbook.xml');
 
       foreach ($sheets->sheets->sheet as $sheet) {
-        $this->_sheets[(int)$sheet['sheetId']] = (string)$sheet['name'];
+        $attrs = $sheet->attributes('r', true);
+
+        foreach ($attrs as $name => $value)
+        {
+          if ($name == 'id')
+          {
+            $sheet_id = (int)str_replace('rId', '', (string)$value);
+            $this->_sheets[$sheet_id] = (string)$sheet['name'];
+            break;
+          }
+        }
       }
 
       unset($sheets);
